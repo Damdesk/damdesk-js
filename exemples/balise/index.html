@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>&lt;dam-img&gt; — sans aucun outillage</title>
+  <style>
+    body { font: 16px/1.6 system-ui; margin: 0; padding: 40px; max-width: 1100px; margin-inline: auto; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #666; margin: 36px 0 12px; }
+    .g { display: grid; gap: 14px; grid-template-columns: repeat(3, 1fr); }
+    dam-img { border-radius: 10px; overflow: hidden; }
+    @media (max-width: 700px) { .g { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <h1>&lt;dam-img&gt;</h1>
+  <p>
+    Aucune installation, aucun outil de construction. La balise est définie par
+    le script, et fonctionne telle quelle dans Vue, Svelte, Angular et Astro.
+  </p>
+
+  <h2>Cadre carré, couleur d'attente donnée par l'API</h2>
+  <div class="g">
+    <dam-img nom="escarpins-studio" ratio="1/1" couleur="#955252" alt="Escarpins en studio"></dam-img>
+    <dam-img nom="guitare-detail"   ratio="1/1" couleur="#605d3e" alt="Détail de guitare"></dam-img>
+    <dam-img nom="fleurs-violettes" ratio="1/1" couleur="#695b72" alt="Fleurs violettes"></dam-img>
+  </div>
+
+  <h2>Rapport d'origine conservé — on donne les dimensions du fichier</h2>
+  <div class="g">
+    <dam-img nom="oeufs-bois"       taille="2400x1600" alt="Œufs sur une planche"></dam-img>
+    <dam-img nom="livre-ouvert"     taille="2400x1600" alt="Livre ouvert"></dam-img>
+    <dam-img nom="voitures-jaune"   taille="2400x1600" alt="Deux voitures anciennes"></dam-img>
+  </div>
+
+  <script defer src="https://cdn.damdesk.com/damdesk.js" data-espace="vitrine"></script>
+</body>
+</html>

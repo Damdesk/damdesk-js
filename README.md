@@ -51,6 +51,49 @@ Le script est **engendré par le serveur** à partir des mêmes constantes que l
 livraison. Les paliers que connaît votre navigateur sont donc exactement ceux
 que le serveur applique, sans dérive possible.
 
+## La balise `<dam-img>`
+
+Si vous préférez une balise à des attributs `data-`, le script en définit une :
+
+```html
+<dam-img nom="044_32_s1" ratio="4/3" couleur="#c8b8a4" alt="Pull col roulé"></dam-img>
+```
+
+C'est un composant web natif, donc **Vue, Svelte, Angular, Astro et le HTML nu
+la posent sans rien installer**. Il n'y a pas de paquet par framework : écrire
+cinq paquets pour cinq façons de produire le même DOM serait de l'entretien
+pur.
+
+| Attribut | Équivalent |
+|---|---|
+| `nom` | `data-dam` |
+| `ratio` `taille` `focus` `couleur` `format` `qualite` `espace` | `data-dam-…` |
+| `immediat` | `data-dam-charge="immediat"` |
+| `alt` | recopié sur l'image interne |
+
+La balise vit en **light DOM**, sans racine d'ombre : les règles de votre
+feuille de style s'appliquent normalement à l'image qu'elle contient.
+
+## La couleur d'attente
+
+DAMDesk calcule la couleur moyenne de chaque image à l'import. Écrite dans le
+HTML, elle peint la place réservée pendant le chargement **sans coûter une
+seule requête** — là où un aperçu flouté en coûterait une par image.
+
+```html
+<img data-dam="packshot" data-dam-taille="2400x1600" data-dam-couleur="#955252" alt="">
+```
+
+L'API la donne, ainsi que la balise toute faite :
+
+```json
+{ "couleur": "#955252",
+  "balise": "<img data-dam=\"packshot\" data-dam-taille=\"2400x1600\" data-dam-couleur=\"#955252\" alt=\"\">" }
+```
+
+C'est la moyenne et non la teinte la plus fréquente : sur un packshot sur fond
+blanc, la couleur dominante est le blanc, ce qui ne prépare l'œil à rien.
+
 ## Attributs
 
 Sur l'image :
@@ -64,7 +107,7 @@ Sur l'image :
 | `data-dam-charge` | `immediat` pour une image au-dessus de la ligne de flottaison |
 | `data-dam-format` | `webp` (défaut) · `jpeg` · `png` |
 | `data-dam-qualite` | `60` · `80` (défaut) · `92` |
-| `data-dam-couleur` | couleur de fond avant chargement, ex. `#c8b8a4` |
+| `data-dam-couleur` | couleur d'attente, donnée par l'API (`couleur`) |
 | `data-dam-espace` | pour tirer d'un autre espace que celui du script |
 | `data-dam-bg` | sur un `<div>` : fond CSS au lieu d'une balise `<img>` |
 
@@ -154,6 +197,7 @@ Le site public de DAMDesk fait exactement cela.
 - [`exemples/html`](exemples/html) — page statique, aucun outillage
 - [`exemples/react`](exemples/react) — composant `<Image>` de trois lignes
 - [`exemples/vue`](exemples/vue) — idem en Vue 3
+- [`exemples/balise`](exemples/balise) — `<dam-img>`, sans aucun outillage
 - [`exemples/wordpress`](exemples/wordpress) — extrait à coller dans un thème
 
 ## Licence

@@ -138,8 +138,19 @@
       el.decoding = 'async';
     }
     observateurTaille.observe(el);
-    if (el.getAttribute('data-dam-charge') === 'immediat') charger(el);
-    else observateurVue.observe(el);
+    if (el.getAttribute('data-dam-charge') === 'immediat') {
+      /*
+       * Une image à cadrage immédiat DOIT attendre la mise en page.
+       *
+       * connectedCallback d'une balise personnalisée s'exécute avant que le
+       * navigateur n'ait calculé la grille qui la contient : la boîte mesure
+       * alors quelques pixels, on demande le palier 64, puis le
+       * redimensionnement corrige à 512. Deux requêtes pour une image, et la
+       * première est facturée pour rien. Un tour de boucle d'affichage suffit
+       * à ce que la largeur soit vraie.
+       */
+      requestAnimationFrame(function () { charger(el); });
+    } else observateurVue.observe(el);
   };
 
   var observateurVue = new IntersectionObserver(function (entrees) {
@@ -185,6 +196,8 @@
     }
   }).observe(document.documentElement, { childList: true, subtree: true });
 
+
+
   // ── la feuille de style minimale : réserver la place, puis révéler
   var style = document.createElement('style');
   style.textContent =
@@ -195,6 +208,57 @@
       'opacity:.999;transition:background-image .35s ease}' +
     '@media (prefers-reduced-motion:reduce){img[data-dam]{transition:none}}';
   document.head.appendChild(style);
+
+  /*
+   * ── <dam-img> : le même moteur, sous forme de balise.
+   *
+   * Un composant web natif plutôt qu'un paquet par framework. Vue, Svelte,
+   * Angular, Astro et le HTML nu savent tous poser une balise personnalisée ;
+   * écrire cinq paquets pour cinq façons de produire le même DOM serait de
+   * l'entretien pur.
+   *
+   * En LIGHT DOM, sans Shadow : une règle img{width:100%} de la feuille de
+   * style du site doit s'appliquer. Une racine d'ombre isolerait le composant
+   * de la mise en page, ce qui est l'inverse du service rendu.
+   */
+  if (window.customElements && !customElements.get('dam-img')) {
+    var ATTRS = [ 'nom', 'ratio', 'taille', 'focus', 'couleur', 'format', 'qualite', 'espace' ];
+    var DamImg = function () {
+      return Reflect.construct(HTMLElement, [], DamImg);
+    };
+    DamImg.prototype = Object.create(HTMLElement.prototype);
+    DamImg.prototype.constructor = DamImg;
+    Object.setPrototypeOf(DamImg, HTMLElement);
+
+    DamImg.observedAttributes = ATTRS.concat([ 'alt', 'immediat' ]);
+
+    DamImg.prototype.connectedCallback = function () {
+      if (this.__img) return;
+      var img = document.createElement('img');
+      this.__img = img;
+      this.__refleter();
+      this.appendChild(img);
+      prepare(img);
+    };
+    DamImg.prototype.attributeChangedCallback = function () {
+      if (this.__img) this.__refleter();
+    };
+    DamImg.prototype.__refleter = function () {
+      var img = this.__img, self = this;
+      ATTRS.forEach(function (a) {
+        var v = self.getAttribute(a);
+        var cible = a === 'nom' ? 'data-dam' : 'data-dam-' + a;
+        if (v === null) img.removeAttribute(cible);
+        else img.setAttribute(cible, v);
+      });
+      img.setAttribute('alt', this.getAttribute('alt') || '');
+      if (this.hasAttribute('immediat')) img.setAttribute('data-dam-charge', 'immediat');
+      else img.removeAttribute('data-dam-charge');
+    };
+    customElements.define('dam-img', DamImg);
+    // La balise n'a pas de style propre : c'est un conteneur transparent.
+    style.textContent += 'dam-img{display:block}dam-img>img{width:100%;height:100%;display:block}';
+  }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { balayer(); });
