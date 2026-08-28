@@ -123,6 +123,24 @@ Sur la balise `<script>` :
 | `data-base` | `https://cdn.damdesk.com` | pour un domaine de diffusion à vous |
 | `data-diagnostic` | — | force les avertissements de droits hors développement |
 
+## Donner une largeur à l'image
+
+Le script mesure la boîte réelle : encore faut-il que l'image en ait une.
+
+`<dam-img>` apporte sa propre mise en page, il n'y a rien à faire. Une balise
+`<img data-dam>` posée à nu, en revanche, dépend de votre feuille de style —
+un élément remplacé sans source mesure zéro, et notamment ne s'étire pas dans
+une cellule de grille :
+
+```css
+/* ce que fait déjà à peu près tout le monde */
+img { width: 100%; display: block; }
+```
+
+Sans largeur, le script attend, puis se rabat sur le conteneur parent après une
+seconde : l'image s'affiche, mais probablement trop grande. C'est un filet, pas
+un fonctionnement normal.
+
 ## Réserver la place
 
 Le script ne peut réserver la hauteur que s'il connaît le rapport de l'image

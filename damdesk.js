@@ -52,11 +52,23 @@
     return base + (base.indexOf('?') >= 0 ? '&' : '?') + p.join('&');
   };
 
+  /*
+   * La largeur BRUTE de la boîte, et RIEN D'AUTRE.
+   *
+   * Il y avait ici un repli sur la largeur du parent quand l'élément mesurait
+   * zéro. C'était faux dans le cas le plus courant : une balise <img> vide
+   * placée dans une grille mesure zéro (un élément remplacé ne s'étire pas),
+   * et le parent est alors le CONTENEUR ENTIER, pas la cellule. Mesuré : trois
+   * images de 393 px demandaient le palier 1280, soit huit fois trop d'octets.
+   *
+   * Zéro veut dire « pas encore mise en page » : on attend, c'est tout.
+   */
+  var mesurer = function (el) {
+    return Math.round(el.getBoundingClientRect().width);
+  };
+
   var largeurVoulue = function (el) {
-    var boite = el.getBoundingClientRect().width
-      || (el.parentElement && el.parentElement.getBoundingClientRect().width) || 0;
-    // Une boîte de largeur nulle veut dire « pas encore mise en page ». On ne
-    // devine pas : on attend le prochain passage du ResizeObserver.
+    var boite = mesurer(el) || el.__repli || 0;
     if (!boite) return 0;
     var dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
     return palier(Math.ceil(boite * dpr));
@@ -137,27 +149,67 @@
       if (!el.getAttribute('alt')) el.setAttribute('alt', '');
       el.decoding = 'async';
     }
+    /*
+     * PERSONNE NE MESURE AVANT QUE LA MISE EN PAGE NE SOIT FAITE.
+     *
+     * Mesurer depuis connectedCallback donne une largeur fausse : la grille
+     * n'est pas encore calculée. Un tour de boucle d'affichage ne suffit pas
+     * non plus — mesuré, trois boîtes identiques de 393 px demandaient 512,
+     * 640 et 640 selon l'ordre d'exécution. Et comme on ne redescend jamais
+     * de palier, la première mesure trop GRANDE se verrouille : 25 % d'octets
+     * en trop, définitivement.
+     *
+     * C'est donc le ResizeObserver qui déclenche le premier chargement. Son
+     * rappel initial arrive après la mise en page, avec la vraie largeur, et
+     * il est déjà temporisé.
+     */
+    if (el.getAttribute('data-dam-charge') === 'immediat') el.__urgent = 1;
+    else observateurVue.observe(el);
     observateurTaille.observe(el);
-    if (el.getAttribute('data-dam-charge') === 'immediat') {
-      /*
-       * Une image à cadrage immédiat DOIT attendre la mise en page.
-       *
-       * connectedCallback d'une balise personnalisée s'exécute avant que le
-       * navigateur n'ait calculé la grille qui la contient : la boîte mesure
-       * alors quelques pixels, on demande le palier 64, puis le
-       * redimensionnement corrige à 512. Deux requêtes pour une image, et la
-       * première est facturée pour rien. Un tour de boucle d'affichage suffit
-       * à ce que la largeur soit vraie.
-       */
-      requestAnimationFrame(function () { charger(el); });
-    } else observateurVue.observe(el);
   };
+
+  var stabiliser = function (el, alors, reste) {
+    var vue = mesurer(el);
+    /*
+     * On compare la largeur BRUTE, pas le palier.
+     *
+     * Première version : comparaison des paliers. 590 px et 524 px tombent
+     * tous deux sur le palier 640, donc deux mesures DIFFÉRENTES passaient
+     * pour stables, et le composant se verrouillait sur une image 25 % trop
+     * lourde. Le palier est ce qu'on demande au serveur ; la stabilité, elle,
+     * se juge sur la mesure.
+     */
+    if (vue && el.__vue === vue) { alors(); return; }
+    el.__vue = vue;
+    /*
+     * Une borne. Sur une mise en page qui bouge en permanence (carrousel,
+     * animation), on finit par charger plutôt que d'attendre indéfiniment.
+     *
+     * Et si après tout ça la boîte mesure toujours zéro, c'est que l'image
+     * n'a aucune largeur propre — souvent parce que la feuille de style du
+     * site ne lui en donne pas. On se rabat alors sur le parent : une image
+     * un peu trop grande vaut mieux qu'une image qui ne s'affiche jamais.
+     */
+    if ((reste === undefined ? 12 : reste) <= 0) {
+      if (vue) alors();
+      else if (el.parentElement && el.parentElement.getBoundingClientRect().width) {
+        el.__repli = Math.round(el.parentElement.getBoundingClientRect().width);
+        alors();
+      }
+      return;
+    }
+    clearTimeout(el.__attente);
+    el.__attente = setTimeout(function () {
+      stabiliser(el, alors, (reste === undefined ? 12 : reste) - 1);
+    }, 70);
+  };
+
 
   var observateurVue = new IntersectionObserver(function (entrees) {
     for (var i = 0; i < entrees.length; i++) {
       if (entrees[i].isIntersecting) {
         observateurVue.unobserve(entrees[i].target);
-        charger(entrees[i].target);
+        (function (el) { stabiliser(el, function () { charger(el); }); }(entrees[i].target));
       }
     }
   }, { rootMargin: ANTICIPATION });
@@ -167,15 +219,34 @@
    * qui s'élargit, orientation du téléphone, panneau qu'on replie. On temporise
    * pour ne pas tirer une requête à chaque image d'un glissement de souris.
    */
+  /*
+   * ON N'AGIT QUE SUR UNE MESURE STABLE.
+   *
+   * Le premier rappel du ResizeObserver arrive pendant que la grille se
+   * répartit encore : mesuré, une colonne de 393 px était vue à 590 px puis
+   * à 393. Comme on ne redescend jamais de palier, c'est la valeur fausse qui
+   * se verrouillait — 25 % d'octets en trop, définitivement, et de façon
+   * parfaitement reproductible.
+   *
+   * On exige donc DEUX mesures identiques d'affilée avant de charger. Ça coûte
+   * une centaine de millisecondes et zéro requête ; l'inverse coûtait une
+   * requête et une image trop lourde pour toute la vie de la page.
+   */
   var minuteur;
   var observateurTaille = new ResizeObserver(function (entrees) {
     clearTimeout(minuteur);
     var cibles = entrees.map(function (e) { return e.target; });
     minuteur = setTimeout(function () {
       for (var i = 0; i < cibles.length; i++) {
-        if (cibles[i].getAttribute('data-dam-servie')) charger(cibles[i]);
+        (function (el) {
+          // Déjà servie : on ne recharge que pour MONTER de palier.
+          // Marquée urgente : c'est ici que son premier chargement part.
+          if (el.getAttribute('data-dam-servie') || el.__urgent) {
+            stabiliser(el, function () { charger(el); });
+          }
+        }(cibles[i]));
       }
-    }, 180);
+    }, 120);
   });
 
   var balayer = function (racine) {
@@ -201,6 +272,9 @@
   // ── la feuille de style minimale : réserver la place, puis révéler
   var style = document.createElement('style');
   style.textContent =
+    // même raison : une <img data-dam> posée directement dans une grille
+    // élargit sa colonne tant qu'elle est vide.
+    'img[data-dam],[data-dam-bg]{min-width:0}' +
     'img[data-dam]{opacity:0;transition:opacity .35s ease}' +
     'img[data-dam].dam-pret{opacity:1}' +
     'img[data-dam].dam-echec{opacity:1}' +
@@ -257,12 +331,37 @@
     };
     customElements.define('dam-img', DamImg);
     // La balise n'a pas de style propre : c'est un conteneur transparent.
-    style.textContent += 'dam-img{display:block}dam-img>img{width:100%;height:100%;display:block}';
+    /*
+     * min-width: 0 sur la balise, et ce n'est pas cosmétique.
+     *
+     * Un enfant de grille vaut min-width:auto : tant que l'image n'est pas
+     * chargée, <dam-img> impose une largeur minimale à sa colonne. Mesuré :
+     * dans une grille de trois colonnes de 393 px, deux balises étaient vues
+     * à 590 et 524 px, et demandaient donc le palier 640 au lieu de 512 —
+     * 25 % d'octets en trop, de façon parfaitement reproductible.
+     *
+     * C'est à NOUS de poser cette règle : l'intégrateur n'a pas à connaître
+     * ce piège pour que le composant fasse ce qu'on lui promet.
+     */
+    style.textContent += 'dam-img{display:block;min-width:0}'
+      + 'dam-img>img{width:100%;height:100%;display:block}';
   }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { balayer(); });
   } else balayer();
+
+  /*
+   * Filet : si le ResizeObserver n'existe pas, ou n'a rien signalé, les images
+   * urgentes doivent tout de même partir. Une image qui ne se charge jamais
+   * est un défaut bien pire qu'un palier mal choisi.
+   */
+  addEventListener('load', function () {
+    setTimeout(function () {
+      var els = document.querySelectorAll('[data-dam-charge=immediat]:not([data-dam-servie])');
+      for (var i = 0; i < els.length; i++) charger(els[i]);
+    }, 400);
+  });
 
   window.damdesk = { balayer: balayer, paliers: PALIERS, ratios: RATIOS };
 })();
