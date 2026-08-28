@@ -1,0 +1,14 @@
+{
+  "name": "damdesk-js",
+  "version": "1.0.0",
+  "description": "Le composant de diffusion d'images de DAMDesk : il mesure la boîte réelle et demande la bonne variante.",
+  "homepage": "https://damdesk.com",
+  "license": "MIT",
+  "type": "module",
+  "files": ["damdesk.js", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node tests/synchrone.mjs"
+  },
+  "keywords": ["dam", "images", "cdn", "responsive", "lazy-loading", "damdesk"],
+  "repository": { "type": "git", "url": "git+https://github.com/Damdesk/damdesk-js.git" }
+}

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>damdesk.js — page statique</title>
+  <style>
+    body { font: 16px/1.6 system-ui; margin: 0; padding: 40px; max-width: 1100px; margin-inline: auto; }
+    h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: #666; margin: 40px 0 12px; }
+    .grille { display: grid; gap: 14px; }
+    .quatre { grid-template-columns: repeat(4, 1fr); }
+    .deux   { grid-template-columns: repeat(2, 1fr); }
+    img { width: 100%; display: block; border-radius: 10px; background: #f0f0f0; }
+    .banniere { width: 100%; border-radius: 10px; }
+    @media (max-width: 700px) { .quatre { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <h1>damdesk.js</h1>
+
+  <h2>Quatre colonnes — le script choisit la largeur</h2>
+  <div class="grille quatre">
+    <img data-dam="escarpins-studio"  data-dam-taille="2400x1600" alt="Escarpins en studio">
+    <img data-dam="tasse-fond-rouge"  data-dam-taille="2400x1600" alt="Tasse sur fond rouge">
+    <img data-dam="oeufs-bois"        data-dam-taille="2400x1600" alt="Œufs sur une planche">
+    <img data-dam="framboises-blanc"  data-dam-taille="2400x1600" alt="Framboises sur fond blanc">
+  </div>
+
+  <h2>Cadre carré imposé, recadrage sur le visage</h2>
+  <div class="grille deux">
+    <img data-dam="portrait-photographe" data-dam-ratio="1/1" data-dam-focus="visage" alt="Portrait">
+    <img data-dam="voitures-jaune"       data-dam-ratio="1/1" alt="Deux voitures anciennes">
+  </div>
+
+  <h2>Bannière au-dessus de la ligne de flottaison — chargement immédiat</h2>
+  <img class="banniere" data-dam="interieur-boutique" data-dam-ratio="21/9"
+       data-dam-charge="immediat" alt="Intérieur de boutique">
+
+  <h2>Fond CSS</h2>
+  <div data-dam-bg="cerisier-fleur" data-dam-ratio="16/9" style="border-radius:10px"></div>
+
+  <!-- Une seule ligne à ajouter. `defer` : le script s'initialise tout seul. -->
+  <script defer src="https://cdn.damdesk.com/damdesk.js" data-espace="vitrine"></script>
+</body>
+</html>

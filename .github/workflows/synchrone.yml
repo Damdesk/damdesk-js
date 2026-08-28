@@ -1,0 +1,20 @@
+name: Copie synchrone du CDN
+
+# Le fichier versionné doit rester identique à celui que sert le CDN.
+# Vérifié à chaque poussée, et une fois par jour : le script peut changer
+# côté serveur sans que personne ne touche à ce dépôt.
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '17 6 * * *'
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/synchrone.mjs
